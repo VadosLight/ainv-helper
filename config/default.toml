@@ -1,0 +1,25 @@
+# config_version обновляется автоматически при миграции
+config_version = 2
+poll_interval_secs = 30
+
+# Источник индикатора: "battery" или "cpu"
+[status]
+source = "battery"
+
+# Управление /etc/hosts (требует прав администратора)
+[hosts]
+enabled = true
+
+[[hosts.entries]]
+ip = "127.0.0.1"
+hostname = "localhost"
+
+# Пункты меню
+# action_type: header | ios_sim_route | shell | hosts_apply | hosts_clear
+[[actions]]
+label = "-- hosts --"
+action_type = "header"
+
+[[actions]]
+label = "toggle ios-sim-route"
+action_type = "ios_sim_route"

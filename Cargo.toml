@@ -1,0 +1,24 @@
+[package]
+name = "ainv-helper"
+version = "0.1.0"
+edition = "2021"
+description = "Lightweight macOS menu bar utility"
+
+[dependencies]
+tao = "0.30"
+tray-icon = { version = "0.19", default-features = false, features = ["common-controls-v6"] }
+muda = "0.15"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+log = "0.4"
+flexi_logger = "0.29"
+dirs = "6"
+image = "0.25"
+anyhow = "1"
+sysinfo = "0.33"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1

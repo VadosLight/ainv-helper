@@ -6,6 +6,7 @@ mod autostart;
 mod config;
 mod hosts;
 mod icons;
+mod instance;
 mod logging;
 mod privileges;
 
@@ -14,6 +15,7 @@ use anyhow::Result;
 /// Точка входа: инициализирует подсистемы и запускает menu bar UI.
 fn main() -> Result<()> {
     logging::init()?;
+    let _instance = instance::InstanceGuard::acquire()?;
     log::info!(
         "Starting AInv Helper v{} ({})",
         env!("CARGO_PKG_VERSION"),
@@ -26,4 +28,5 @@ fn main() -> Result<()> {
 
     app::App::run(cfg)
 }
+
 

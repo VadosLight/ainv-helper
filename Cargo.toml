@@ -15,10 +15,12 @@ flexi_logger = "0.29"
 dirs = "6"
 image = "0.25"
 anyhow = "1"
+fs2 = "0.4"
 
 [profile.release]
 opt-level = "z"
 lto = true
 strip = true
 codegen-units = 1
+
 

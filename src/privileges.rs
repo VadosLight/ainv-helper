@@ -40,15 +40,6 @@ pub fn ensure_on_first_launch() -> Result<()> {
     Ok(())
 }
 
-/// Повторный запрос прав администратора (пункт меню).
-pub fn request_again() -> Result<()> {
-    explain_admin_need()?;
-    verify_admin_access()?;
-    mark_granted()?;
-    log::info!("Administrator privileges re-granted");
-    Ok(())
-}
-
 /// Выполняет shell-команду с правами root через `osascript`.
 pub fn run_as_admin(shell_command: &str) -> Result<()> {
     let script = format!(
@@ -123,3 +114,4 @@ mod tests {
         assert_eq!(applescript_quote(r#"say "hi""#), r#""say \"hi\"""#);
     }
 }
+

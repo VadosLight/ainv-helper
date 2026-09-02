@@ -18,13 +18,11 @@ use crate::autostart;
 use crate::config::{self, ActionType, Config};
 use crate::hosts;
 use crate::icons;
-use crate::privileges;
 
 const MENU_QUIT: &str = "quit";
 const MENU_AUTOSTART: &str = "autostart";
 const MENU_EDIT_CONFIG: &str = "edit_config";
 const MENU_RELOAD_CONFIG: &str = "reload_config";
-const MENU_GRANT_ADMIN: &str = "grant_admin";
 
 /// Состояние menu bar приложения: tray icon, меню и кэш индикаторов.
 pub struct App {
@@ -41,7 +39,6 @@ pub struct App {
 struct MenuIds {
     quit: muda::MenuId,
     autostart: muda::MenuId,
-    grant_admin: muda::MenuId,
     edit_config: muda::MenuId,
     reload_config: muda::MenuId,
     ios_sim_route: Option<muda::MenuId>,
@@ -139,13 +136,6 @@ impl App {
 
         if id == self.menu_ids.reload_config {
             self.reload_config();
-            return false;
-        }
-
-        if id == self.menu_ids.grant_admin {
-            if let Err(err) = privileges::request_again() {
-                log::error!("Admin privileges request failed: {err:#}");
-            }
             return false;
         }
 
@@ -306,14 +296,6 @@ fn build_menu(config: &Config) -> Result<(Menu, MenuIds)> {
 
     menu.append(&PredefinedMenuItem::separator())?;
 
-    let grant_admin = MenuItem::with_id(
-        MENU_GRANT_ADMIN,
-        "Grant Administrator Access…",
-        true,
-        None,
-    );
-    menu.append(&grant_admin)?;
-
     let autostart = CheckMenuItem::with_id(
         MENU_AUTOSTART,
         "Launch at Login",
@@ -333,7 +315,6 @@ fn build_menu(config: &Config) -> Result<(Menu, MenuIds)> {
         MenuIds {
             quit: quit.id().clone(),
             autostart: autostart.id().clone(),
-            grant_admin: grant_admin.id().clone(),
             edit_config: edit_config.id().clone(),
             reload_config: reload_config.id().clone(),
             ios_sim_route,
@@ -354,4 +335,5 @@ fn hide_from_dock(event_loop: &mut tao::event_loop::EventLoop<()>) {
 /// Заглушка для не-macOS платформ.
 #[cfg(not(target_os = "macos"))]
 fn hide_from_dock(_event_loop: &mut tao::event_loop::EventLoop<()>) {}
+
 

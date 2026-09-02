@@ -72,8 +72,6 @@ action_type = "ios_sim_route"
 | `poll_interval_secs` | Интервал обновления tray-индикатора (сек) |
 | `actions` | Пункты меню; `action_type`: `header`, `ios_sim_route`, `shell`, `hosts_apply`, `hosts_clear` |
 
-Повторный запрос прав: **Grant Administrator Access…** в меню.
-
 Редактирование: **Edit Configuration…** в меню. После изменений — **Reload Configuration**.
 
 Логи: `~/Library/Application Support/ainv-helper/ainv-helper.log`

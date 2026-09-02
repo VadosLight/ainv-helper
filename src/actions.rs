@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use crate::config::{ActionConfig, ActionType, Config};
 use crate::hosts;
 
+/// Выполняет действие меню согласно его `action_type`.
 pub fn execute(action: &ActionConfig, config: &Config) -> Result<()> {
     log::info!("Executing action: {}", action.label);
 
@@ -26,6 +27,7 @@ pub fn execute(action: &ActionConfig, config: &Config) -> Result<()> {
     }
 }
 
+/// Запускает shell-комmandу через `sh -c`, ошибки пишет в лог.
 fn run_shell(command: &str) -> Result<()> {
     let output = Command::new("sh")
         .arg("-c")
@@ -43,6 +45,3 @@ fn run_shell(command: &str) -> Result<()> {
 
     Ok(())
 }
-
-
-

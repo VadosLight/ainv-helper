@@ -12,6 +12,7 @@ mod status;
 
 use anyhow::Result;
 
+/// Точка входа: инициализирует подсистемы и запускает menu bar UI.
 fn main() -> Result<()> {
     logging::init()?;
     log::info!(
@@ -26,6 +27,3 @@ fn main() -> Result<()> {
 
     app::App::run(cfg)
 }
-
-
-

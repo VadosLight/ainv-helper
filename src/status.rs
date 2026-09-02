@@ -1,6 +1,6 @@
-//! Опрос системного статуса для индикатора в строке меню.
+//! Опрос системного статуса (батарея / CPU) для legacy-иконок.
 //!
-//! `battery` — pmset, `cpu` — sysinfo. Возвращает числовое значение и подпись.
+//! `battery` — pmset, `cpu` — sysinfo.
 
 use std::process::Command;
 
@@ -10,12 +10,16 @@ use sysinfo::System;
 use crate::config::StatusSource;
 use crate::icons;
 
+/// Снимок числового статуса и текстовой подписи для иконки.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusSnapshot {
+    /// Числовое значение (проценты).
     pub value: u8,
+    /// Подпись для отображения рядом с иконкой.
     pub label: String,
 }
 
+/// Опрашивает систему и возвращает снимок статуса по выбранному источнику.
 pub fn poll(source: StatusSource) -> Result<StatusSnapshot> {
     match source {
         StatusSource::Battery => poll_battery(),
@@ -23,6 +27,7 @@ pub fn poll(source: StatusSource) -> Result<StatusSnapshot> {
     }
 }
 
+/// Читает уровень заряда батареи через `pmset -g batt`.
 fn poll_battery() -> Result<StatusSnapshot> {
     let output = Command::new("pmset")
         .args(["-g", "batt"])
@@ -55,6 +60,7 @@ fn poll_battery() -> Result<StatusSnapshot> {
     })
 }
 
+/// Читает загрузку CPU через `sysinfo`.
 fn poll_cpu() -> Result<StatusSnapshot> {
     let mut system = System::new();
     system.refresh_cpu_usage();
@@ -68,6 +74,7 @@ fn poll_cpu() -> Result<StatusSnapshot> {
     })
 }
 
+/// Строит иконку батареи по снимку статуса и источнику данных.
 pub fn icon_for(snapshot: &StatusSnapshot, source: StatusSource) -> tray_icon::Icon {
     let color = match source {
         StatusSource::Battery => icons::battery_color(snapshot.value),
@@ -76,4 +83,3 @@ pub fn icon_for(snapshot: &StatusSnapshot, source: StatusSource) -> tray_icon::I
 
     icons::make_battery_icon(snapshot.value, color)
 }
-

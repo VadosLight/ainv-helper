@@ -7,6 +7,7 @@ use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Logger, Naming};
 
 use crate::config;
 
+/// Инициализирует ротируемый file-logger в каталоге конфигурации.
 pub fn init() -> Result<()> {
     let log_dir = config_dir();
     std::fs::create_dir_all(&log_dir).context("create log directory")?;
@@ -32,7 +33,7 @@ pub fn init() -> Result<()> {
     Ok(())
 }
 
+/// Возвращает каталог для log-файлов (совпадает с config dir).
 fn config_dir() -> PathBuf {
     config::config_dir()
 }
-

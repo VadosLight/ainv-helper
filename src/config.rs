@@ -10,8 +10,11 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
+
+/// Текущая версия схемы конфигурации; при несовпадении выполняется миграция.
 pub const CONFIG_VERSION: u32 = 2;
 
+/// Корневая структура конфигурации приложения.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_config_version")]
@@ -26,6 +29,7 @@ pub struct Config {
     pub actions: Vec<ActionConfig>,
 }
 
+/// Настройки управления `/etc/hosts` через конфиг.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostsConfig {
     #[serde(default)]
@@ -34,6 +38,7 @@ pub struct HostsConfig {
     pub entries: Vec<HostsEntry>,
 }
 
+/// Одна запись hosts: IP + hostname.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostsEntry {
     pub ip: String,
@@ -41,6 +46,7 @@ pub struct HostsEntry {
 }
 
 impl HostsEntry {
+    /// Форматирует запись в строку для `/etc/hosts`.
     pub fn to_line(&self) -> String {
         format!("{} {}", self.ip.trim(), self.hostname.trim())
     }
@@ -55,12 +61,14 @@ impl Default for HostsConfig {
     }
 }
 
+/// Настройки источника системного статуса (legacy).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusConfig {
     #[serde(default = "default_status_source")]
     pub source: StatusSource,
 }
 
+/// Источник данных для legacy-индикатора статуса.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusSource {
@@ -68,6 +76,7 @@ pub enum StatusSource {
     Cpu,
 }
 
+/// Описание одного пункта меню из конфига.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionConfig {
     pub label: String,
@@ -77,6 +86,7 @@ pub struct ActionConfig {
     pub action_type: ActionType,
 }
 
+/// Тип действия пункта меню.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionType {
@@ -87,18 +97,22 @@ pub enum ActionType {
     IosSimRoute,
 }
 
+/// Значение по умолчанию для интервала опроса (30 сек).
 fn default_poll_interval() -> u64 {
     30
 }
 
+/// Версия конфига для старых файлов без поля `config_version`.
 fn default_config_version() -> u32 {
     1
 }
 
+/// Источник статуса по умолчанию.
 fn default_status_source() -> StatusSource {
     StatusSource::Battery
 }
 
+/// Тип действия по умолчанию.
 fn default_action_type() -> ActionType {
     ActionType::Shell
 }
@@ -117,16 +131,19 @@ impl Default for Config {
     }
 }
 
+/// Возвращает каталог конфигурации приложения.
 pub fn config_dir() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("ainv-helper")
 }
 
+/// Полный путь к файлу `config.toml`.
 pub fn config_path() -> PathBuf {
     config_dir().join("config.toml")
 }
 
+/// Загружает конфиг или создаёт дефолтный; выполняет миграцию при необходимости.
 pub fn load_or_create() -> Result<Config> {
     let path = config_path();
     if !path.exists() {
@@ -150,6 +167,7 @@ pub fn load_or_create() -> Result<Config> {
     Ok(config)
 }
 
+/// Сериализует и сохраняет конфиг на диск.
 pub fn save(config: &Config) -> Result<()> {
     let path = config_path();
     if let Some(parent) = path.parent() {
@@ -160,6 +178,7 @@ pub fn save(config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Обновляет устаревшие секции конфига до `CONFIG_VERSION`.
 fn migrate(config: &mut Config) -> Result<bool> {
     if config.config_version >= CONFIG_VERSION {
         return Ok(false);
@@ -172,6 +191,7 @@ fn migrate(config: &mut Config) -> Result<bool> {
     Ok(true)
 }
 
+/// Открывает `config.toml` в TextEdit.
 pub fn open_config_in_editor() -> Result<()> {
     let path = config_path();
     std::process::Command::new("open")
@@ -182,12 +202,14 @@ pub fn open_config_in_editor() -> Result<()> {
     Ok(())
 }
 
+/// Возвращает путь к `.app` bundle, если процесс запущен из него.
 pub fn app_bundle_path() -> Option<PathBuf> {
     std::env::current_exe()
         .ok()
         .and_then(|exe| find_app_bundle(&exe))
 }
 
+/// Ищет ancestor с расширением `.app` начиная от пути к исполняемому файлу.
 fn find_app_bundle(path: &Path) -> Option<PathBuf> {
     for ancestor in path.ancestors() {
         if ancestor.extension().and_then(|e| e.to_str()) == Some("app") {
@@ -196,7 +218,3 @@ fn find_app_bundle(path: &Path) -> Option<PathBuf> {
     }
     None
 }
-
-
-
-

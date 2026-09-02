@@ -10,6 +10,7 @@ use anyhow::{Context, Result, bail};
 
 const LAUNCH_AGENT_LABEL: &str = "com.ainv-helper";
 
+/// Путь к plist-файлу LaunchAgent.
 pub fn launch_agent_path() -> PathBuf {
     dirs::home_dir()
         .expect("home directory")
@@ -17,10 +18,12 @@ pub fn launch_agent_path() -> PathBuf {
         .join(format!("{LAUNCH_AGENT_LABEL}.plist"))
 }
 
+/// Проверяет, зарегистрирован ли автозапуск (plist существует).
 pub fn is_enabled() -> bool {
     launch_agent_path().exists()
 }
 
+/// Включает или отключает автозапуск через `launchctl load/unload`.
 pub fn set_enabled(enabled: bool, app_bundle: Option<&PathBuf>) -> Result<()> {
     let plist_path = launch_agent_path();
 
@@ -30,8 +33,7 @@ pub fn set_enabled(enabled: bool, app_bundle: Option<&PathBuf>) -> Result<()> {
             .or_else(crate::config::app_bundle_path)
             .context("autostart requires running from a .app bundle")?;
 
-        let executable = bundle
-            .join("Contents/MacOS/ainv-helper");
+        let executable = bundle.join("Contents/MacOS/ainv-helper");
 
         if !executable.exists() {
             bail!(
@@ -57,21 +59,20 @@ pub fn set_enabled(enabled: bool, app_bundle: Option<&PathBuf>) -> Result<()> {
         }
 
         log::info!("Autostart enabled via LaunchAgent");
-    } else {
-        if plist_path.exists() {
-            let _ = Command::new("launchctl")
-                .args(["unload", "-w"])
-                .arg(&plist_path)
-                .status();
+    } else if plist_path.exists() {
+        let _ = Command::new("launchctl")
+            .args(["unload", "-w"])
+            .arg(&plist_path)
+            .status();
 
-            fs::remove_file(&plist_path).context("remove LaunchAgent plist")?;
-            log::info!("Autostart disabled");
-        }
+        fs::remove_file(&plist_path).context("remove LaunchAgent plist")?;
+        log::info!("Autostart disabled");
     }
 
     Ok(())
 }
 
+/// Формирует XML plist для LaunchAgent с указанным путём к бинарнику.
 fn build_plist(executable: &PathBuf) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -97,6 +98,7 @@ fn build_plist(executable: &PathBuf) -> String {
     )
 }
 
+/// Регистрирует автозапуск при первом запуске из `.app`, если plist ещё нет.
 pub fn register_on_first_launch() -> Result<()> {
     if is_enabled() {
         return Ok(());
@@ -110,4 +112,3 @@ pub fn register_on_first_launch() -> Result<()> {
 
     Ok(())
 }
-

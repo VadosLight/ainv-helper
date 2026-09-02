@@ -1,25 +1,32 @@
-//! Чтение и запись /etc/hosts через привилегированные команды.
+//! Чтение и запись `/etc/hosts` через привилегированные команды.
 
 use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 
-use crate::config::{HostsConfig, HostsEntry};
+use crate::config::{ActionType, Config, HostsConfig, HostsEntry};
 use crate::privileges;
 
+/// Путь к системному файлу hosts.
 pub const HOSTS_PATH: &str = "/etc/hosts";
+
 const BLOCK_BEGIN: &str = "# --- ainv-helper begin ---";
 const BLOCK_END: &str = "# --- ainv-helper end ---";
 
+/// Маркер начала блока iOS Simulator route.
 pub const IOS_SIM_BEGIN: &str = "# BEGIN AMIO IOS SIMULATOR";
+/// Маркер конца блока iOS Simulator route.
 pub const IOS_SIM_END: &str = "# END AMIO IOS SIMULATOR";
+/// Запись hosts для iOS Simulator route.
 pub const IOS_SIM_ENTRY: &str = "127.0.0.1 invest-test.alfabank.ru";
 
+/// Читает текущее содержимое `/etc/hosts`.
 pub fn read() -> Result<String> {
     fs::read_to_string(HOSTS_PATH).with_context(|| format!("read {HOSTS_PATH}"))
 }
 
+/// Применяет записи из конфига в управляемый блок ainv-helper.
 pub fn apply(config: &HostsConfig) -> Result<()> {
     if !config.enabled {
         bail!("hosts management is disabled in config");
@@ -30,18 +37,43 @@ pub fn apply(config: &HostsConfig) -> Result<()> {
     write(&updated)
 }
 
+/// Удаляет управляемый блок ainv-helper из `/etc/hosts`.
 pub fn clear_managed() -> Result<()> {
     let current = read().unwrap_or_default();
     let updated = remove_managed_block(&current);
     write(&updated)
 }
 
+/// Проверяет, активен ли iOS Simulator route в `/etc/hosts`.
 pub fn is_ios_sim_route_active() -> bool {
     read()
         .map(|content| is_ios_sim_block_present(&content))
         .unwrap_or(false)
 }
 
+/// Возвращает `true`, если хотя бы один hosts-пункт меню включён.
+pub fn any_hosts_route_active(config: &Config) -> bool {
+    config
+        .actions
+        .iter()
+        .filter(|action| is_hosts_route_action(action.action_type))
+        .any(|action| is_hosts_route_active(action.action_type))
+}
+
+/// Определяет, относится ли тип действия к hosts-маршрутам.
+fn is_hosts_route_action(action_type: ActionType) -> bool {
+    matches!(action_type, ActionType::IosSimRoute)
+}
+
+/// Проверяет активность конкретного hosts-маршрута по типу действия.
+fn is_hosts_route_active(action_type: ActionType) -> bool {
+    match action_type {
+        ActionType::IosSimRoute => is_ios_sim_route_active(),
+        _ => false,
+    }
+}
+
+/// Переключает iOS Simulator route; возвращает новое состояние (`true` = включён).
 pub fn toggle_ios_sim_route() -> Result<bool> {
     let current = read().unwrap_or_default();
     let active = is_ios_sim_block_present(&current);
@@ -54,16 +86,19 @@ pub fn toggle_ios_sim_route() -> Result<bool> {
     Ok(!active)
 }
 
+/// Возвращает текст блока iOS Simulator route.
 pub fn ios_sim_block() -> String {
     format!("{IOS_SIM_BEGIN}\n{IOS_SIM_ENTRY}\n{IOS_SIM_END}\n")
 }
 
+/// Проверяет наличие полного блока AMIO IOS SIMULATOR в содержимом hosts.
 fn is_ios_sim_block_present(content: &str) -> bool {
     content.contains(IOS_SIM_BEGIN)
         && content.contains(IOS_SIM_END)
         && content.contains(IOS_SIM_ENTRY)
 }
 
+/// Добавляет блок iOS Simulator route в конец файла.
 fn append_ios_sim_block(content: &str) -> String {
     let mut result = content.trim_end().to_string();
     if !result.is_empty() {
@@ -73,6 +108,7 @@ fn append_ios_sim_block(content: &str) -> String {
     result
 }
 
+/// Удаляет блок iOS Simulator route из содержимого hosts.
 fn remove_ios_sim_block(content: &str) -> String {
     let Some(start) = content.find(IOS_SIM_BEGIN) else {
         return content.to_string();
@@ -100,6 +136,7 @@ fn remove_ios_sim_block(content: &str) -> String {
     result
 }
 
+/// Записывает содержимое в `/etc/hosts` через staging-файл и sudo.
 pub fn write(content: &str) -> Result<()> {
     let temp = staging_path();
     if let Some(parent) = temp.parent() {
@@ -117,6 +154,7 @@ pub fn write(content: &str) -> Result<()> {
     Ok(())
 }
 
+/// Вставляет управляемый блок ainv-helper в содержимое hosts.
 fn merge(existing: &str, entries: &[HostsEntry]) -> String {
     let base = remove_managed_block(existing);
     let block = format_managed_block(entries);
@@ -136,6 +174,7 @@ fn merge(existing: &str, entries: &[HostsEntry]) -> String {
     result
 }
 
+/// Удаляет управляемый блок ainv-helper из содержимого hosts.
 fn remove_managed_block(content: &str) -> String {
     let Some(start) = content.find(BLOCK_BEGIN) else {
         return content.to_string();
@@ -160,6 +199,7 @@ fn remove_managed_block(content: &str) -> String {
     result
 }
 
+/// Форматирует управляемый блок ainv-helper из списка записей.
 fn format_managed_block(entries: &[HostsEntry]) -> String {
     if entries.is_empty() {
         return String::new();
@@ -173,10 +213,12 @@ fn format_managed_block(entries: &[HostsEntry]) -> String {
     lines.join("\n")
 }
 
+/// Путь к временному staging-файлу перед записью в `/etc/hosts`.
 fn staging_path() -> PathBuf {
     crate::config::config_dir().join("hosts.staging")
 }
 
+/// Экранирует путь для безопасной подстановки в shell-команду.
 fn shell_escape(path: &PathBuf) -> String {
     let value = path.display().to_string();
     if value.contains(' ') || value.contains('\'') {
@@ -190,6 +232,7 @@ fn shell_escape(path: &PathBuf) -> String {
 mod tests {
     use super::*;
 
+    /// Проверяет замену управляемого блока ainv-helper.
     #[test]
     fn removes_and_replaces_managed_block() {
         let input = "127.0.0.1 localhost\n# --- ainv-helper begin ---\n127.0.0.1 old.test\n# --- ainv-helper end ---\n";
@@ -203,12 +246,14 @@ mod tests {
         assert!(merged.contains("127.0.0.1 localhost"));
     }
 
+    /// Проверяет детекцию блока iOS Simulator.
     #[test]
     fn detects_ios_sim_block() {
         let content = format!("127.0.0.1 localhost\n{}", ios_sim_block());
         assert!(is_ios_sim_block_present(&content));
     }
 
+    /// Проверяет добавление и удаление блока iOS Simulator.
     #[test]
     fn toggles_ios_sim_block() {
         let base = "127.0.0.1 localhost\n";
@@ -218,4 +263,3 @@ mod tests {
         assert!(!is_ios_sim_block_present(&cleared));
     }
 }
-

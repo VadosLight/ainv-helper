@@ -8,7 +8,6 @@ mod hosts;
 mod icons;
 mod logging;
 mod privileges;
-mod status;
 
 use anyhow::Result;
 
@@ -27,3 +26,4 @@ fn main() -> Result<()> {
 
     app::App::run(cfg)
 }
+

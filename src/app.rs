@@ -1,7 +1,7 @@
 //! Ядро приложения: event loop, NSStatusItem и NSMenu.
 //!
 //! `tray-icon`/`muda` оборачивают AppKit (NSStatusItem, NSMenu).
-//! Цикл tao опрашивает MenuEvent и периодически обновляет иконку статуса.
+//! Цикл tao опрашивает MenuEvent и периодически обновляет tray-индикатор hosts.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -354,3 +354,4 @@ fn hide_from_dock(event_loop: &mut tao::event_loop::EventLoop<()>) {
 /// Заглушка для не-macOS платформ.
 #[cfg(not(target_os = "macos"))]
 fn hide_from_dock(_event_loop: &mut tao::event_loop::EventLoop<()>) {}
+

@@ -62,28 +62,15 @@ open "/Applications/AInv Helper.app"
 ```toml
 poll_interval_secs = 30
 
-[status]
-source = "battery"   # battery | cpu
-
-[hosts]
-enabled = true
-
-[[hosts.entries]]
-ip = "127.0.0.1"
-hostname = "ads.example.com"
-
 [[actions]]
-label = "Apply Hosts Entries"
-action_type = "hosts_apply"
+label = "toggle ios-sim-route"
+action_type = "ios_sim_route"
 ```
 
 | Поле | Описание |
 |------|----------|
-| `poll_interval_secs` | Интервал обновления иконки (сек) |
-| `status.source` | Источник индикатора: заряд батареи или загрузка CPU |
-| `hosts.enabled` | Включить управление `/etc/hosts` |
-| `hosts.entries` | Записи между маркерами `# --- ainv-helper begin/end ---` |
-| `actions` | Пункты меню; `action_type`: `shell`, `hosts_apply`, `hosts_clear` |
+| `poll_interval_secs` | Интервал обновления tray-индикатора (сек) |
+| `actions` | Пункты меню; `action_type`: `header`, `ios_sim_route`, `shell`, `hosts_apply`, `hosts_clear` |
 
 Повторный запрос прав: **Grant Administrator Access…** в меню.
 
@@ -100,9 +87,8 @@ config.rs     → загрузка TOML, пути к конфигу и .app bund
 privileges.rs → запрос прав администратора (osascript), первый запуск
 hosts.rs      → чтение/запись /etc/hosts через privileged shell
 autostart.rs  → LaunchAgent plist + launchctl
-status.rs     → опрос системы (pmset / sysinfo), снимок статуса
-icons.rs      → генерация RGBA-иконки батареи по уровню заряда
-actions.rs    → выполнение shell-коман из конфига
+icons.rs      → RGBA-иконки tray «AINV» и пунктов меню
+actions.rs    → выполнение действий из конфига
 logging.rs    → flexi_logger в файл + stderr
 ```
 

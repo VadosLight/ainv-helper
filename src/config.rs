@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
 
 /// Текущая версия схемы конфигурации; при несовпадении выполняется миграция.
-pub const CONFIG_VERSION: u32 = 2;
+pub const CONFIG_VERSION: u32 = 3;
 
 /// Корневая структура конфигурации приложения.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,8 +21,6 @@ pub struct Config {
     pub config_version: u32,
     #[serde(default = "default_poll_interval")]
     pub poll_interval_secs: u64,
-    #[serde(default)]
-    pub status: StatusConfig,
     #[serde(default)]
     pub hosts: HostsConfig,
     #[serde(default)]
@@ -61,21 +59,6 @@ impl Default for HostsConfig {
     }
 }
 
-/// Настройки источника системного статуса (legacy).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StatusConfig {
-    #[serde(default = "default_status_source")]
-    pub source: StatusSource,
-}
-
-/// Источник данных для legacy-индикатора статуса.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StatusSource {
-    Battery,
-    Cpu,
-}
-
 /// Описание одного пункта меню из конфига.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionConfig {
@@ -107,22 +90,9 @@ fn default_config_version() -> u32 {
     1
 }
 
-/// Источник статуса по умолчанию.
-fn default_status_source() -> StatusSource {
-    StatusSource::Battery
-}
-
 /// Тип действия по умолчанию.
 fn default_action_type() -> ActionType {
     ActionType::Shell
-}
-
-impl Default for StatusConfig {
-    fn default() -> Self {
-        Self {
-            source: default_status_source(),
-        }
-    }
 }
 
 impl Default for Config {
@@ -218,3 +188,4 @@ fn find_app_bundle(path: &Path) -> Option<PathBuf> {
     }
     None
 }
+

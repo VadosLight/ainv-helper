@@ -1,10 +1,6 @@
 # config_version обновляется автоматически при миграции
-config_version = 2
+config_version = 3
 poll_interval_secs = 30
-
-# Источник индикатора: "battery" или "cpu"
-[status]
-source = "battery"
 
 # Управление /etc/hosts (требует прав администратора)
 [hosts]

@@ -89,7 +89,7 @@ main.rs            → bootstrap: логирование, конфиг, прав
 lib.rs             → дерево модулей crate
 app/               → event loop (tao), NSStatusItem + NSMenu (tray-icon/muda)
   icons.rs         → RGBA-иконки tray «AINV» и пунктов меню
-platform/          → macOS: LaunchAgent, admin privileges, single instance
+platform/          → macOS: LaunchAgent, admin privileges, single instance, alerts
 config.rs          → загрузка TOML, пути к конфигу и .app bundle
 hosts.rs           → чтение/запись /etc/hosts через privileged shell
 android.rs         → Android emulator system proxy через adb

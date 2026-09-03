@@ -19,7 +19,7 @@ use crate::actions;
 use crate::android;
 use crate::config::{self, ActionType, Config};
 use crate::hosts;
-use crate::platform::autostart;
+use crate::platform::{autostart, notify};
 
 const MENU_QUIT: &str = "quit";
 const MENU_AUTOSTART: &str = "autostart";
@@ -56,8 +56,8 @@ impl App {
         hide_from_dock(&mut event_loop);
 
         let (menu, menu_ids) = build_menu(&config)?;
-        let any_hosts_active = hosts::any_hosts_route_active(&config);
-        let icon = icons::tray_ainv_icon(any_hosts_active);
+        let any_active = Self::any_indicator_active(&config);
+        let icon = icons::tray_ainv_icon(any_active);
 
         let tray = TrayIconBuilder::new()
             .with_icon(icon)
@@ -72,7 +72,7 @@ impl App {
             menu,
             menu_ids,
             last_poll: Instant::now(),
-            last_tray_hosts_active: Some(any_hosts_active),
+            last_tray_hosts_active: Some(any_active),
             last_ios_sim_active: None,
             last_android_proxy_active: None,
         };
@@ -149,8 +149,18 @@ impl App {
         if let Some(index) = self.menu_ids.actions.get(&id).copied() {
             if let Some(action) = self.config.actions.get(index) {
                 let action_type = action.action_type;
+                let label = action.label.clone();
                 if let Err(err) = actions::execute(action, &self.config) {
-                    log::error!("Action '{}' failed: {err:#}", action.label);
+                    log::error!("Action '{label}' failed: {err:#}");
+                    if action_type == ActionType::AndroidSimProxy {
+                        let reason = format!("{err:#}");
+                        if let Err(notify_err) =
+                            notify::show_error("AInv Helper — Android proxy", &reason)
+                        {
+                            log::warn!("Failed to show error dialog: {notify_err:#}");
+                        }
+                        self.sync_android_sim_proxy_item();
+                    }
                 } else if action_type == ActionType::IosSimRoute {
                     self.sync_ios_sim_route_item();
                     if let Err(err) = self.refresh_tray_indicator() {
@@ -158,6 +168,9 @@ impl App {
                     }
                 } else if action_type == ActionType::AndroidSimProxy {
                     self.sync_android_sim_proxy_item();
+                    if let Err(err) = self.refresh_tray_indicator() {
+                        log::warn!("Tray indicator refresh failed: {err:#}");
+                    }
                 }
             }
         }
@@ -255,9 +268,9 @@ impl App {
         Ok(())
     }
 
-    /// Обновляет tray icon «AINV» + цветной кружок по состоянию hosts-маршрутов.
+    /// Обновляет tray icon «AINV» + цветной кружок по состоянию маршрутов/proxy.
     fn refresh_tray_indicator(&mut self) -> Result<()> {
-        let any_active = hosts::any_hosts_route_active(&self.config);
+        let any_active = Self::any_indicator_active(&self.config);
         if self.last_tray_hosts_active == Some(any_active) {
             return Ok(());
         }
@@ -270,6 +283,11 @@ impl App {
             if any_active { "green" } else { "yellow" }
         );
         Ok(())
+    }
+
+    /// Зелёный индикатор, если активен hosts-маршрут или Android proxy.
+    fn any_indicator_active(config: &Config) -> bool {
+        hosts::any_hosts_route_active(config) || android::is_proxy_active()
     }
 }
 

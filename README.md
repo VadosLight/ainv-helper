@@ -113,4 +113,6 @@ src/                  исходный код (lib + bin)
 config/default.toml   конфиг по умолчанию (встраивается в бинарник)
 resources/Info.plist  LSUIElement + ActivationPolicy::Accessory — без иконки в Dock
 scripts/build-app.sh  сборка .app bundle
+.cursor/skills/       Agent Skills для работы с репозиторием
+AGENTS.md             указатель на skills и жёсткие правила
 ```

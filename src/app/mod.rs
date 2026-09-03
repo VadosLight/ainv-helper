@@ -3,6 +3,8 @@
 //! `tray-icon`/`muda` оборачивают AppKit (NSStatusItem, NSMenu).
 //! Цикл tao опрашивает MenuEvent и периодически обновляет tray-индикатор hosts.
 
+mod icons;
+
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -14,10 +16,10 @@ use tao::platform::run_return::EventLoopExtRunReturn;
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 use crate::actions;
-use crate::autostart;
+use crate::android;
 use crate::config::{self, ActionType, Config};
 use crate::hosts;
-use crate::icons;
+use crate::platform::autostart;
 
 const MENU_QUIT: &str = "quit";
 const MENU_AUTOSTART: &str = "autostart";
@@ -33,6 +35,7 @@ pub struct App {
     last_poll: Instant,
     last_tray_hosts_active: Option<bool>,
     last_ios_sim_active: Option<bool>,
+    last_android_proxy_active: Option<bool>,
 }
 
 /// Идентификаторы системных и пользовательских пунктов меню.
@@ -42,6 +45,7 @@ struct MenuIds {
     edit_config: muda::MenuId,
     reload_config: muda::MenuId,
     ios_sim_route: Option<muda::MenuId>,
+    android_sim_proxy: Option<muda::MenuId>,
     actions: HashMap<muda::MenuId, usize>,
 }
 
@@ -70,10 +74,12 @@ impl App {
             last_poll: Instant::now(),
             last_tray_hosts_active: Some(any_hosts_active),
             last_ios_sim_active: None,
+            last_android_proxy_active: None,
         };
 
         app.sync_autostart_menu_item();
         app.sync_ios_sim_route_item();
+        app.sync_android_sim_proxy_item();
 
         let exit_code = event_loop.run_return(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(250));
@@ -108,6 +114,7 @@ impl App {
                     log::warn!("Tray indicator refresh failed: {err:#}");
                 }
                 app.sync_ios_sim_route_item();
+                app.sync_android_sim_proxy_item();
                 app.last_poll = Instant::now();
             }
         });
@@ -149,6 +156,8 @@ impl App {
                     if let Err(err) = self.refresh_tray_indicator() {
                         log::warn!("Tray indicator refresh failed: {err:#}");
                     }
+                } else if action_type == ActionType::AndroidSimProxy {
+                    self.sync_android_sim_proxy_item();
                 }
             }
         }
@@ -176,23 +185,33 @@ impl App {
             return;
         }
 
-        let icon = if active {
-            Some(icons::menu_check_green())
-        } else {
-            Some(icons::menu_cross_red())
-        };
-
-        for item in self.menu.items() {
-            if item.id() == item_id {
-                if let Some(icon_item) = item.as_icon_menuitem() {
-                    icon_item.set_icon(icon);
-                }
-                break;
-            }
-        }
+        set_icon_menu_item_icon(&self.menu, item_id, active);
 
         self.last_ios_sim_active = Some(active);
-        log::debug!("ios-sim-route indicator: {}", if active { "active" } else { "inactive" });
+        log::debug!(
+            "ios-sim-route indicator: {}",
+            if active { "active" } else { "inactive" }
+        );
+    }
+
+    /// Обновляет иконку пункта `toggle-android-sim-proxy` (✓ / ✗).
+    fn sync_android_sim_proxy_item(&mut self) {
+        let Some(item_id) = &self.menu_ids.android_sim_proxy else {
+            return;
+        };
+
+        let active = android::is_proxy_active();
+        if self.last_android_proxy_active == Some(active) {
+            return;
+        }
+
+        set_icon_menu_item_icon(&self.menu, item_id, active);
+
+        self.last_android_proxy_active = Some(active);
+        log::debug!(
+            "android-sim-proxy indicator: {}",
+            if active { "active" } else { "inactive" }
+        );
     }
 
     /// Синхронизирует галочку «Launch at Login» с состоянием LaunchAgent.
@@ -227,9 +246,11 @@ impl App {
         self.menu = menu;
         self.menu_ids = menu_ids;
         self.last_ios_sim_active = None;
+        self.last_android_proxy_active = None;
         self.last_tray_hosts_active = None;
         self.tray.set_menu(Some(Box::new(self.menu.clone())));
         self.sync_ios_sim_route_item();
+        self.sync_android_sim_proxy_item();
         let _ = self.refresh_tray_indicator();
         Ok(())
     }
@@ -252,12 +273,31 @@ impl App {
     }
 }
 
+/// Выставляет ✓ / ✗ на IconMenuItem по id.
+fn set_icon_menu_item_icon(menu: &Menu, item_id: &muda::MenuId, active: bool) {
+    let icon = if active {
+        Some(icons::menu_check_green())
+    } else {
+        Some(icons::menu_cross_red())
+    };
+
+    for item in menu.items() {
+        if item.id() == item_id {
+            if let Some(icon_item) = item.as_icon_menuitem() {
+                icon_item.set_icon(icon);
+            }
+            break;
+        }
+    }
+}
+
 /// Собирает нативное меню из конфига и системных пунктов.
 fn build_menu(config: &Config) -> Result<(Menu, MenuIds)> {
     let menu = Menu::new();
 
     let mut action_ids = HashMap::new();
     let mut ios_sim_route = None;
+    let mut android_sim_proxy = None;
 
     for (index, action) in config.actions.iter().enumerate() {
         match action.action_type {
@@ -275,6 +315,19 @@ fn build_menu(config: &Config) -> Result<(Menu, MenuIds)> {
                 let item = IconMenuItem::new(&action.label, true, Some(icon), None);
                 let id = item.id().clone();
                 ios_sim_route = Some(id.clone());
+                action_ids.insert(id, index);
+                menu.append(&item)?;
+            }
+            ActionType::AndroidSimProxy => {
+                let active = android::is_proxy_active();
+                let icon = if active {
+                    icons::menu_check_green()
+                } else {
+                    icons::menu_cross_red()
+                };
+                let item = IconMenuItem::new(&action.label, true, Some(icon), None);
+                let id = item.id().clone();
+                android_sim_proxy = Some(id.clone());
                 action_ids.insert(id, index);
                 menu.append(&item)?;
             }
@@ -318,6 +371,7 @@ fn build_menu(config: &Config) -> Result<(Menu, MenuIds)> {
             edit_config: edit_config.id().clone(),
             reload_config: reload_config.id().clone(),
             ios_sim_route,
+            android_sim_proxy,
             actions: action_ids,
         },
     ))
@@ -335,5 +389,4 @@ fn hide_from_dock(event_loop: &mut tao::event_loop::EventLoop<()>) {
 /// Заглушка для не-macOS платформ.
 #[cfg(not(target_os = "macos"))]
 fn hide_from_dock(_event_loop: &mut tao::event_loop::EventLoop<()>) {}
-
 

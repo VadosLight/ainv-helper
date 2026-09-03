@@ -1,5 +1,5 @@
 # config_version обновляется автоматически при миграции
-config_version = 3
+config_version = 4
 poll_interval_secs = 30
 
 # Управление /etc/hosts (требует прав администратора)
@@ -11,7 +11,7 @@ ip = "127.0.0.1"
 hostname = "localhost"
 
 # Пункты меню
-# action_type: header | ios_sim_route | shell | hosts_apply | hosts_clear
+# action_type: header | ios_sim_route | android_sim_proxy | shell | hosts_apply | hosts_clear
 [[actions]]
 label = "-- hosts --"
 action_type = "header"
@@ -19,3 +19,11 @@ action_type = "header"
 [[actions]]
 label = "toggle ios-sim-route"
 action_type = "ios_sim_route"
+
+[[actions]]
+label = "-- android --"
+action_type = "header"
+
+[[actions]]
+label = "toggle-android-sim-proxy"
+action_type = "android_sim_proxy"

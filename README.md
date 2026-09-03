@@ -65,12 +65,18 @@ poll_interval_secs = 30
 [[actions]]
 label = "toggle ios-sim-route"
 action_type = "ios_sim_route"
+
+[[actions]]
+label = "toggle-android-sim-proxy"
+action_type = "android_sim_proxy"
 ```
 
 | Поле | Описание |
 |------|----------|
 | `poll_interval_secs` | Интервал обновления tray-индикатора (сек) |
-| `actions` | Пункты меню; `action_type`: `header`, `ios_sim_route`, `shell`, `hosts_apply`, `hosts_clear` |
+| `actions` | Пункты меню; `action_type`: `header`, `ios_sim_route`, `android_sim_proxy`, `shell`, `hosts_apply`, `hosts_clear` |
+
+`android_sim_proxy` включает/выключает Android system HTTP proxy через `adb` (как AMIOProxy `emulator-proxy-on` / `emulator-proxy-off`). По умолчанию `10.0.2.2:9140`; перекрывается `AIO_PROXY_ANDROID_HOST` / `AIO_PROXY_PORT`. Нужен запущенный эмулятор и `adb` в PATH (или `AIO_PROXY_ADB`).
 
 Редактирование: **Edit Configuration…** в меню. После изменений — **Reload Configuration**.
 
@@ -79,15 +85,16 @@ action_type = "ios_sim_route"
 ## Архитектура
 
 ```
-main.rs       → точка входа: логирование, конфиг, права админа, автозапуск, UI
-app.rs        → event loop (tao), NSStatusItem + NSMenu (tray-icon/muda)
-config.rs     → загрузка TOML, пути к конфигу и .app bundle
-privileges.rs → запрос прав администратора (osascript), первый запуск
-hosts.rs      → чтение/запись /etc/hosts через privileged shell
-autostart.rs  → LaunchAgent plist + launchctl
-icons.rs      → RGBA-иконки tray «AINV» и пунктов меню
-actions.rs    → выполнение действий из конфига
-logging.rs    → flexi_logger в файл + stderr
+main.rs            → bootstrap: логирование, конфиг, права, автозапуск, UI
+lib.rs             → дерево модулей crate
+app/               → event loop (tao), NSStatusItem + NSMenu (tray-icon/muda)
+  icons.rs         → RGBA-иконки tray «AINV» и пунктов меню
+platform/          → macOS: LaunchAgent, admin privileges, single instance
+config.rs          → загрузка TOML, пути к конфигу и .app bundle
+hosts.rs           → чтение/запись /etc/hosts через privileged shell
+android.rs         → Android emulator system proxy через adb
+actions.rs         → исполнение действий из конфига
+logging.rs         → flexi_logger в файл + stderr
 ```
 
 Поток работы:
@@ -100,7 +107,9 @@ logging.rs    → flexi_logger в файл + stderr
 ## Структура проекта
 
 ```
-src/                  исходный код
+src/                  исходный код (lib + bin)
+  app/                UI: event loop, меню, иконки
+  platform/           macOS integrations
 config/default.toml   конфиг по умолчанию (встраивается в бинарник)
 resources/Info.plist  LSUIElement + ActivationPolicy::Accessory — без иконки в Dock
 scripts/build-app.sh  сборка .app bundle

@@ -1,16 +1,11 @@
 //! Порядок старта: логирование → конфиг → права админа → автозапуск → UI.
 
-mod actions;
-mod app;
-mod autostart;
-mod config;
-mod hosts;
-mod icons;
-mod instance;
-mod logging;
-mod privileges;
-
 use anyhow::Result;
+
+use ainv_helper::app;
+use ainv_helper::config;
+use ainv_helper::logging;
+use ainv_helper::platform::{autostart, instance, privileges};
 
 /// Точка входа: инициализирует подсистемы и запускает menu bar UI.
 fn main() -> Result<()> {
@@ -28,5 +23,3 @@ fn main() -> Result<()> {
 
     app::App::run(cfg)
 }
-
-

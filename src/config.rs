@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
 
 /// Текущая версия схемы конфигурации; при несовпадении выполняется миграция.
-pub const CONFIG_VERSION: u32 = 3;
+pub const CONFIG_VERSION: u32 = 4;
 
 /// Корневая структура конфигурации приложения.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +78,7 @@ pub enum ActionType {
     HostsClear,
     Header,
     IosSimRoute,
+    AndroidSimProxy,
 }
 
 /// Значение по умолчанию для интервала опроса (30 сек).
@@ -188,4 +189,5 @@ fn find_app_bundle(path: &Path) -> Option<PathBuf> {
     }
     None
 }
+
 

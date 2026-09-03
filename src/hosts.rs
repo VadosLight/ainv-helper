@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 
 use crate::config::{ActionType, Config, HostsConfig, HostsEntry};
-use crate::privileges;
+use crate::platform::privileges;
 
 /// Путь к системному файлу hosts.
 pub const HOSTS_PATH: &str = "/etc/hosts";
@@ -137,6 +137,8 @@ fn remove_ios_sim_block(content: &str) -> String {
 }
 
 /// Записывает содержимое в `/etc/hosts` через staging-файл и sudo.
+/// После записи сбрасывает DNS-кэш (как AMIOProxy), иначе dscacheutil
+/// может ещё отдавать старый адрес.
 pub fn write(content: &str) -> Result<()> {
     let temp = staging_path();
     if let Some(parent) = temp.parent() {
@@ -145,12 +147,15 @@ pub fn write(content: &str) -> Result<()> {
     fs::write(&temp, content).context("write staged hosts file")?;
 
     let cmd = format!(
-        "cp {HOSTS_PATH} {HOSTS_PATH}.ainv-backup.$(date +%s) 2>/dev/null; cp {} {HOSTS_PATH}",
+        "cp {HOSTS_PATH} {HOSTS_PATH}.ainv-backup.$(date +%s) 2>/dev/null; \
+         /usr/bin/install -o root -g wheel -m 644 {} {HOSTS_PATH} && \
+         /usr/bin/dscacheutil -flushcache && \
+         /usr/bin/killall -HUP mDNSResponder",
         shell_escape(&temp)
     );
 
     privileges::run_as_admin(&cmd).context("apply staged hosts file as root")?;
-    log::info!("Updated {HOSTS_PATH}");
+    log::info!("Updated {HOSTS_PATH} and flushed DNS cache");
     Ok(())
 }
 
@@ -263,3 +268,4 @@ mod tests {
         assert!(!is_ios_sim_block_present(&cleared));
     }
 }
+

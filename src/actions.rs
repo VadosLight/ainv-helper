@@ -1,9 +1,10 @@
-//! Выполнение быстрых действий из конфига (shell-команды, hosts).
+//! Выполнение быстрых действий из конфига (shell-команды, hosts, android proxy).
 
 use std::process::Command;
 
 use anyhow::{Context, Result};
 
+use crate::android;
 use crate::config::{ActionConfig, ActionType, Config};
 use crate::hosts;
 
@@ -20,6 +21,14 @@ pub fn execute(action: &ActionConfig, config: &Config) -> Result<()> {
             let enabled = hosts::toggle_ios_sim_route()?;
             log::info!(
                 "ios-sim-route {}",
+                if enabled { "enabled" } else { "disabled" }
+            );
+            Ok(())
+        }
+        ActionType::AndroidSimProxy => {
+            let enabled = android::toggle_proxy()?;
+            log::info!(
+                "android-sim-proxy {}",
                 if enabled { "enabled" } else { "disabled" }
             );
             Ok(())
